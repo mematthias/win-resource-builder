@@ -1,0 +1,35 @@
+// Reference for tests/golden/version_info.rs: DLL, German, every string and every flag
+LANGUAGE 0x07, 0x01
+
+1 VERSIONINFO
+FILEVERSION 10, 0, 65535, 1
+PRODUCTVERSION 10, 0, 0, 0
+FILEFLAGSMASK 0x3FL
+FILEFLAGS 0x2FL
+FILEOS 0x40004L
+FILETYPE 0x2L
+FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040704B0"
+        BEGIN
+            VALUE "Comments", "Built for the golden tests"
+            VALUE "CompanyName", "Example Company"
+            VALUE "FileDescription", "Example Library"
+            VALUE "FileVersion", "10.0.65535.1"
+            VALUE "InternalName", "example_lib"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Example Company"
+            VALUE "LegalTrademarks", "Example is a trademark"
+            VALUE "OriginalFilename", "example_lib.dll"
+            VALUE "PrivateBuild", "Built by CI runner 7"
+            VALUE "ProductName", "Example Product"
+            VALUE "ProductVersion", "10.0.0.0"
+            VALUE "SpecialBuild", "Instrumented"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0407, 1200
+    END
+END

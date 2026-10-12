@@ -1,0 +1,46 @@
+[package]
+name = "win-resource-builder-windows-check"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.91"
+publish = false
+license = "MIT OR Apache-2.0"
+description = "Builds an executable and a DLL with win-resource-builder resources and checks that Windows loads every image"
+
+# The DLL carries the same resources as the executable and exports one function
+[lib]
+name = "win_resource_builder_payload"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[[bin]]
+name = "windows_check"
+path = "src/main.rs"
+
+[dependencies]
+png = { version = "^0.18", default-features = false, features = [] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "^0.61", default-features = false, features = [
+	"Win32_Foundation",
+	"Win32_Globalization",
+	"Win32_Graphics_Gdi",
+	"Win32_System_LibraryLoader",
+	"Win32_UI_WindowsAndMessaging",
+] }
+
+[build-dependencies]
+png = { version = "^0.18", default-features = false, features = [] }
+win-resource-builder = { path = "../..", default-features = false, features = ["svg"] }
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+arithmetic_side_effects = "warn"
+as_conversions = "warn"
+
+# The build script runs oxipng over every image, which takes minutes without optimization
+[profile.dev.build-override]
+opt-level = 3
+
+[profile.release.build-override]
+opt-level = 3

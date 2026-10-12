@@ -1,0 +1,3 @@
+// Reference for tests/golden/manifest.rs: process manifest, language neutral
+LANGUAGE 0, 0
+1 24 "manifest.xml"

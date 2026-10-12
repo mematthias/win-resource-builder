@@ -1,0 +1,4 @@
+// Reference for tests/golden/icon.rs: the images of the second icon continue the numbering
+LANGUAGE 0, 0
+1 ICON "app.ico"
+2 ICON "second.ico"

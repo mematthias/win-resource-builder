@@ -1,0 +1,4 @@
+// Reference for tests/golden/manifest.rs: both manifests in the order the crate writes them
+LANGUAGE 0, 0
+1 24 "manifest.xml"
+2 24 "manifest.xml"

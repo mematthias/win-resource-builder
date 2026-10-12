@@ -1,0 +1,64 @@
+[package]
+name = "win-resource-builder"
+description = "Platform independent writer for Win32 resource files (.res) and COFF resource objects"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+edition = "2024"
+rust-version = "1.91"
+repository = "https://github.com/mematthias/win-resource-builder"
+readme = "README.md"
+keywords = ["windows", "resource", "icon", "manifest", "build-script"]
+categories = ["development-tools::build-utils", "os::windows-apis"]
+include = ["/src/**/*.rs", "/tests/**", "/README.md", "/LICENSE-APACHE", "/LICENSE-MIT"]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[features]
+default = ["images"]
+images = ["dep:oxipng", "dep:png"]
+parallel = ["images", "oxipng/parallel"]
+svg = ["images", "dep:resvg"]
+
+[dependencies]
+bitflags = { version = "^2.13", default-features = false, features = [] }
+oxipng = { version = "^10.2", default-features = false, features = ["zopfli"], optional = true }
+png = { version = "^0.18", default-features = false, features = [], optional = true }
+resvg = { version = "^0.48", default-features = false, features = [], optional = true }
+roxmltree = { version = "^0.21", default-features = false, features = [] }
+thiserror = { version = "^2.0", default-features = false, features = [] }
+unicode-normalization = { version = "^0.1.25", default-features = false, features = [] }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+
+arithmetic_side_effects = "deny"
+as_conversions = "deny"
+expect_used = "deny"
+indexing_slicing = "deny"
+panic = "deny"
+string_slice = "deny"
+todo = "deny"
+unimplemented = "deny"
+unreachable = "deny"
+unwrap_used = "deny"
+
+absolute_paths = "deny"
+must_use_candidate = "deny"
+renamed_function_params = "deny"
+shadow_unrelated = "deny"
+unused_trait_names = "deny"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+multiple_crate_versions = "allow"
+tabs_in_doc_comments = "allow"
+too_many_lines = "allow"
+
+# Optimized dependencies keep the oxipng and Zopfli tests fast in debug builds.
+[profile.dev.package."*"]
+opt-level = 3

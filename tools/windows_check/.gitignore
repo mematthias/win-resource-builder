@@ -1,0 +1,15 @@
+*
+!*/
+
+!/.gitignore
+!/build.rs
+!/Cargo.lock
+!/Cargo.toml
+!/check.py
+!/README.md
+!/rustfmt.toml
+!/rust-toolchain.toml
+
+!/src/**
+!/tests/**
+!/tools/**

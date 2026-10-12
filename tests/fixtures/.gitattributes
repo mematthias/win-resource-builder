@@ -1,0 +1,2 @@
+# Golden inputs and outputs must stay byte-identical on every checkout
+* -text

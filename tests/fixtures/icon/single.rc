@@ -1,0 +1,3 @@
+// Reference for tests/golden/icon.rs: one canonical icon, language neutral
+LANGUAGE 0, 0
+1 ICON "app.ico"

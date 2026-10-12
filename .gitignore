@@ -1,0 +1,15 @@
+*
+!*/
+
+!/.gitignore
+!/Cargo.lock
+!/Cargo.toml
+!/LICENSE-APACHE
+!/LICENSE-MIT
+!/README.md
+!/rustfmt.toml
+!/rust-toolchain.toml
+
+!/src/**
+!/tests/**
+!/tools/**
