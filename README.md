@@ -17,7 +17,7 @@ The crate is meant for build scripts:
 
 ```toml
 [build-dependencies]
-win-resource-builder = "0.1"
+win-resource-builder = "0.2"
 ```
 
 ```rust

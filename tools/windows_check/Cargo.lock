@@ -465,7 +465,7 @@ dependencies = [
 
 [[package]]
 name = "win-resource-builder"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bitflags",
  "oxipng",
@@ -478,7 +478,7 @@ dependencies = [
 
 [[package]]
 name = "win-resource-builder-windows-check"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "png",
  "win-resource-builder",
