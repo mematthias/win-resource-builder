@@ -17,7 +17,7 @@
 //! 		.legal_copyright("Copyright 2026 Example Ltd.")
 //! 		.create("Example", "example.exe", Version::new(1, 2, 3, 0))?;
 //! 	let mut file = ResourceFile::new();
-//! 	file.insert_version_info(version_info)?;
+//! 	file.insert_version_info(&version_info)?;
 //! 	Ok(())
 //! }
 //! ```
@@ -27,6 +27,7 @@ use crate::{nfc_violation, pad, put_u16, put_u32};
 use bitflags::bitflags;
 use std::fmt;
 use std::num::NonZeroU16;
+use std::sync::Arc;
 use thiserror::Error;
 
 /// The kind of file, stored as `dwFileType`.
@@ -106,12 +107,12 @@ impl fmt::Display for Version {
 }
 
 /// Checked and encoded version information, ready to insert.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct VersionInfo {
 	file_version: Version,
 	product_version: Version,
 	language: LanguageId,
-	data: Vec<u8>,
+	data: Arc<[u8]>,
 }
 
 impl VersionInfo {
@@ -261,13 +262,11 @@ impl VersionInfoOptions {
 				})
 			})
 		})?;
-		out.shrink_to_fit();
-
 		Ok(VersionInfo {
 			file_version,
 			product_version,
 			language: self.language,
-			data: out,
+			data: Arc::from(out),
 		})
 	}
 
@@ -368,14 +367,27 @@ impl VersionInfoOptions {
 	}
 }
 
+/// Shows versions, language and the length of the data, not the data itself.
+impl fmt::Debug for VersionInfo {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.debug_struct("VersionInfo")
+			.field("file_version", &self.file_version)
+			.field("product_version", &self.product_version)
+			.field("language", &self.language)
+			.field("len", &self.data.len())
+			.finish_non_exhaustive()
+	}
+}
+
 impl ResourceFile {
 	/// Inserts version information as resource 1 of `RT_VERSION` in its language.
 	///
 	/// One per language; Windows shows the one in the language of the user interface or the neutral one.
-	/// The data moves into the file without a copy.
-	pub fn insert_version_info(&mut self, value: VersionInfo) -> Result<(), InsertError> {
+	/// The resource file shares the data with the version information, so no byte is copied;
+	/// the version information stays usable, after a failed insertion as well, and can go into further files.
+	pub fn insert_version_info(&mut self, value: &VersionInfo) -> Result<(), InsertError> {
 		let key = ResourceKey::new(RT_VERSION, NonZeroU16::MIN, value.language);
-		self.insert_entries(vec![NewEntry::new(key, MOVEABLE | PURE, value.data.into_boxed_slice())])
+		self.insert_entries(vec![NewEntry::new(key, MOVEABLE | PURE, <Arc<[u8]>>::clone(&value.data))])
 	}
 }
 
@@ -678,10 +690,20 @@ mod tests {
 				.unwrap()
 		};
 		let mut file = ResourceFile::new();
-		file.insert_version_info(info(LanguageId::NEUTRAL)).unwrap();
-		file.insert_version_info(info(LanguageId::ENGLISH_US)).unwrap();
+		let neutral = info(LanguageId::NEUTRAL);
+		let data_at = neutral.data().as_ptr();
+		let summary = format!(", len: {}, .. }}", neutral.data().len());
+		assert!(format!("{neutral:?}").ends_with(&summary), "No raw bytes: {neutral:?}");
+		file.insert_version_info(&neutral).unwrap();
+		let key = ResourceKey::new(RT_VERSION, NonZeroU16::MIN, LanguageId::NEUTRAL);
 		assert_eq!(
-			file.insert_version_info(info(LanguageId::NEUTRAL)),
+			file.entry(key).map(|(_, data)| data.as_ptr()),
+			Some(data_at),
+			"The data moves without a copy"
+		);
+		file.insert_version_info(&info(LanguageId::ENGLISH_US)).unwrap();
+		assert_eq!(
+			file.insert_version_info(&info(LanguageId::NEUTRAL)),
 			Err(InsertError::DuplicateResource {
 				resource_type: 16,
 				name: 1,
@@ -689,5 +711,6 @@ mod tests {
 			})
 		);
 		assert_eq!(file.len(), 2);
+		assert_eq!(<VersionInfo>::clone(&neutral).data().as_ptr(), data_at, "Clones share the data");
 	}
 }

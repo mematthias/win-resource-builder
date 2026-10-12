@@ -20,7 +20,7 @@ fn cursor(fixture: &str) -> Cursor {
 #[must_use]
 fn single() -> ResourceFile {
 	let mut file = ResourceFile::new();
-	file.insert_cursor(id(1), LanguageId::NEUTRAL, cursor("arrow.cur"))
+	file.insert_cursor(id(1), LanguageId::NEUTRAL, &cursor("arrow.cur"))
 		.expect("Fixture cursor fits");
 	file
 }
@@ -29,9 +29,9 @@ fn single() -> ResourceFile {
 fn mixed() -> ResourceFile {
 	// Icons and cursors are namespaces of their own: both groups and both image sets start at 1
 	let mut file = ResourceFile::new();
-	file.insert_icon(id(1), LanguageId::NEUTRAL, icon("app.ico"))
+	file.insert_icon(id(1), LanguageId::NEUTRAL, &icon("app.ico"))
 		.expect("Fixture icon fits");
-	file.insert_cursor(id(1), LanguageId::NEUTRAL, cursor("arrow.cur"))
+	file.insert_cursor(id(1), LanguageId::NEUTRAL, &cursor("arrow.cur"))
 		.expect("Fixture cursor fits");
 	file
 }

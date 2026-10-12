@@ -148,8 +148,14 @@ impl<'a> Bitmap<'a> {
 
 		// At most 256 pixels per row, 32 bits per pixel and 256 table entries keep every product small
 		let edge = usize::from(size.get());
-		let xor_stride = edge.strict_mul(format.bits()).next_multiple_of(32).strict_div(8);
-		let mask_stride = edge.next_multiple_of(32).strict_div(8);
+		// Rows are padded to whole DWORDs
+		let row_bytes = |bits: usize| {
+			bits.checked_next_multiple_of(32)
+				.map(|bits| bits.strict_div(8))
+				.ok_or_else(|| invalid("a row exceeds the address space"))
+		};
+		let xor_stride = row_bytes(edge.strict_mul(format.bits()))?;
+		let mask_stride = row_bytes(edge)?;
 		let palette_len = usize_from_u32(colors).strict_mul(4);
 		let xor_len = xor_stride.strict_mul(edge);
 		let mask_len = mask_stride.strict_mul(edge);

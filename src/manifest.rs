@@ -22,7 +22,7 @@
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! 	let mut file = ResourceFile::new();
-//! 	file.insert_manifest(Manifest::standard().create()?)?;
+//! 	file.insert_manifest(&Manifest::standard().create()?)?;
 //! 	Ok(())
 //! }
 //! ```
@@ -34,6 +34,7 @@ use roxmltree::{Document, Error as XmlError, ParsingOptions};
 use std::borrow::Cow;
 use std::iter;
 use std::num::NonZeroU16;
+use std::sync::Arc;
 use thiserror::Error;
 
 /// The resource name of a manifest, which decides when Windows reads it.
@@ -195,11 +196,11 @@ pub enum HeapType {
 }
 
 /// A checked manifest, ready to insert.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Manifest {
 	kind: ManifestKind,
 	language: LanguageId,
-	text: String,
+	text: Arc<str>,
 }
 
 impl Manifest {
@@ -304,7 +305,7 @@ impl ManifestOptions {
 		Ok(Manifest {
 			kind: self.kind,
 			language: self.language,
-			text,
+			text: Arc::from(text),
 		})
 	}
 
@@ -368,7 +369,7 @@ impl StandardManifestOptions {
 		Ok(Manifest {
 			kind: self.kind,
 			language: self.language,
-			text,
+			text: Arc::from(text),
 		})
 	}
 
@@ -697,10 +698,11 @@ impl StandardManifestOptions {
 impl ResourceFile {
 	/// Inserts a manifest as `RT_MANIFEST` resource under the name of its kind, in its language.
 	///
-	/// The text moves into the file without a copy.
-	pub fn insert_manifest(&mut self, manifest: Manifest) -> Result<(), InsertError> {
+	/// The resource file shares the data with the manifest, so no byte is copied;
+	/// the manifest stays usable, after a failed insertion as well, and can go into further files.
+	pub fn insert_manifest(&mut self, manifest: &Manifest) -> Result<(), InsertError> {
 		let key = ResourceKey::new(RT_MANIFEST, manifest.kind.resource_id(), manifest.language);
-		let data = manifest.text.into_bytes().into_boxed_slice();
+		let data = Arc::<[u8]>::from(<Arc<str>>::clone(&manifest.text));
 		self.insert_entries(vec![NewEntry::new(key, MOVEABLE | PURE, data)])
 	}
 }
@@ -1080,11 +1082,18 @@ mod tests {
 				.unwrap()
 		};
 		let mut file = ResourceFile::new();
-		file.insert_manifest(manifest()).unwrap();
+		let created = manifest();
+		let text_at = created.text().as_ptr();
+		file.insert_manifest(&created).unwrap();
 		let key = ResourceKey::new(RT_MANIFEST, NonZeroU16::new(2).unwrap(), german);
 		assert_eq!(file.entry(key), Some((MOVEABLE | PURE, MINIMAL.as_bytes())));
 		assert_eq!(
-			file.insert_manifest(manifest()),
+			file.entry(key).map(|(_, data)| data.as_ptr()),
+			Some(text_at),
+			"The text moves without a copy"
+		);
+		assert_eq!(
+			file.insert_manifest(&manifest()),
 			Err(InsertError::DuplicateResource {
 				resource_type: 24,
 				name: 2,
@@ -1092,6 +1101,14 @@ mod tests {
 			})
 		);
 		assert_ne!(file.to_coff(CoffMachine::X64), []);
+
+		// The manifest survives the failed insertion, and the second file shares its text, as clones do
+		let kept = manifest();
+		assert!(file.insert_manifest(&kept).is_err());
+		let mut other = ResourceFile::new();
+		other.insert_manifest(&kept).unwrap();
+		assert_eq!(other.entry(key).map(|(_, data)| data.as_ptr()), Some(kept.text().as_ptr()));
+		assert_eq!(<Manifest>::clone(&kept).text().as_ptr(), kept.text().as_ptr());
 	}
 
 	const STANDARD: &str = concat!(

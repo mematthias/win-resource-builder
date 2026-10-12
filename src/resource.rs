@@ -9,10 +9,11 @@
 use crate::{ordinal, pad, put_u16, put_u32, usize_from_u32};
 use std::collections::BTreeMap;
 use std::convert::Infallible;
-use std::env;
 use std::ffi::OsString;
 use std::io::{self, BufWriter, Write};
 use std::num::NonZeroU16;
+use std::sync::Arc;
+use std::{env, fmt};
 use thiserror::Error;
 
 /// The machine type of a COFF object, which has to match the target of the linked binary.
@@ -198,7 +199,7 @@ impl LanguageId {
 ///
 /// Insert the resources, then write the file once, as COFF object for the linker.
 /// A failed insertion leaves the file unchanged.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Eq, PartialEq)]
 pub struct ResourceFile {
 	entries: BTreeMap<ResourceKey, Entry>,
 	/// The number of languages of every name, at most 65535 as the COFF directory counts them in a WORD.
@@ -359,10 +360,17 @@ impl ResourceFile {
 			.map(|(&(_, name), _)| name)
 	}
 
-	#[cfg(any(test, feature = "images"))]
+	#[cfg(test)]
 	#[must_use]
 	pub(crate) fn entry(&self, key: ResourceKey) -> Option<(u16, &[u8])> {
 		self.entries.get(&key).map(|entry| (entry.flags, &*entry.data))
+	}
+
+	/// Returns flags and data of a resource, the data shared with the file.
+	#[cfg(feature = "images")]
+	#[must_use]
+	pub(crate) fn shared_entry(&self, key: ResourceKey) -> Option<(u16, Arc<[u8]>)> {
+		self.entries.get(&key).map(|entry| (entry.flags, <Arc<[u8]>>::clone(&entry.data)))
 	}
 
 	fn emit_res<S: Sink>(&self, out: &mut S) -> Result<(), S::Error> {
@@ -491,6 +499,24 @@ impl ResourceFile {
 	}
 }
 
+/// Shows sizes and the length of every resource, not the data, which reaches megabytes with icons.
+impl fmt::Debug for ResourceFile {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		struct Lengths<'a>(&'a BTreeMap<ResourceKey, Entry>);
+		impl fmt::Debug for Lengths<'_> {
+			fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+				f.debug_map().entries(self.0.iter().map(|(key, entry)| (key, entry.len))).finish()
+			}
+		}
+
+		f.debug_struct("ResourceFile")
+			.field("res_size", &self.totals.res_size)
+			.field("coff_size", &self.coff.size)
+			.field("resources", &Lengths(&self.entries))
+			.finish_non_exhaustive()
+	}
+}
+
 impl Default for ResourceFile {
 	#[inline]
 	fn default() -> Self {
@@ -581,21 +607,21 @@ impl ResourceKey {
 pub(crate) struct NewEntry {
 	key: ResourceKey,
 	flags: u16,
-	data: Box<[u8]>,
+	data: Arc<[u8]>,
 }
 
 impl NewEntry {
 	#[must_use]
-	pub(crate) const fn new(key: ResourceKey, flags: u16, data: Box<[u8]>) -> Self {
+	pub(crate) const fn new(key: ResourceKey, flags: u16, data: Arc<[u8]>) -> Self {
 		Self { key, flags, data }
 	}
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Eq, PartialEq)]
 struct Entry {
 	flags: u16,
 	len: u32,
-	data: Box<[u8]>,
+	data: Arc<[u8]>,
 }
 
 /// The counts and sizes the layout of both output forms follows from.
@@ -823,7 +849,7 @@ mod tests {
 	}
 
 	fn insert(file: &mut ResourceFile, resource_type: u16, name: u16, language: u16, data: &[u8]) -> Result<(), InsertError> {
-		file.insert_entries(vec![NewEntry::new(key(resource_type, name, language), MOVEABLE, data.into())])
+		file.insert_entries(vec![NewEntry::new(key(resource_type, name, language), MOVEABLE, Arc::from(data))])
 	}
 
 	#[must_use]
@@ -997,8 +1023,8 @@ mod tests {
 			})
 		);
 		let twice = vec![
-			NewEntry::new(key(10, 9, 0), 0, Box::new([1])),
-			NewEntry::new(key(10, 9, 0), 0, Box::new([2])),
+			NewEntry::new(key(10, 9, 0), 0, Arc::from([1])),
+			NewEntry::new(key(10, 9, 0), 0, Arc::from([2])),
 		];
 		assert!(matches!(file.insert_entries(twice), Err(InsertError::DuplicateResource { .. })));
 		assert_eq!(file, sample(), "The sample is deterministic, so it shows the state before");
@@ -1092,7 +1118,7 @@ mod tests {
 		// 65535 languages fill the table of one name; with a second name 65536 relocations need the overflow record
 		let mut file = ResourceFile::new();
 		let entries = (0..=0xFFFE)
-			.map(|language| NewEntry::new(key(10, 1, language), 0, Box::new([0xAB])))
+			.map(|language| NewEntry::new(key(10, 1, language), 0, Arc::from([0xAB])))
 			.collect();
 		file.insert_entries(entries).unwrap();
 		let before = (file.to_res(), file.totals, file.coff);

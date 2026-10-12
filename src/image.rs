@@ -30,7 +30,7 @@
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! 	let icon = Icon::options().png_optimization(PngOptimization::Retain).create_from_file("app.ico")?;
 //! 	let mut file = ResourceFile::new();
-//! 	file.insert_icon(NonZeroU16::MIN, LanguageId::NEUTRAL, icon)?;
+//! 	file.insert_icon(NonZeroU16::MIN, LanguageId::NEUTRAL, &icon)?;
 //! 	Ok(())
 //! }
 //! ```
@@ -54,6 +54,7 @@ use std::fs::File;
 use std::io::{self, Read as _};
 use std::num::{NonZeroU8, NonZeroU16};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use thiserror::Error;
 
 /// How the images of an icon or cursor are compressed when it is loaded.
@@ -508,12 +509,14 @@ impl ResourceFile {
 	///
 	/// The images take the names after the highest image name in the file.
 	/// Explorer shows the icon group with the lowest name for the file, so the main icon is usually 1.
-	/// The images move into the file without a copy; to use an icon under several names, insert an alias.
-	pub fn insert_icon(&mut self, id: NonZeroU16, language: LanguageId, icon: Icon) -> Result<(), InsertError> {
-		let images = icon.images.into_iter().map(|image| {
+	/// The resource file shares the data with the icon, so no byte is copied;
+	/// the icon stays usable, after a failed insertion as well, and can go into further files.
+	/// To use an icon under several names of one file, insert an alias.
+	pub fn insert_icon(&mut self, id: NonZeroU16, language: LanguageId, icon: &Icon) -> Result<(), InsertError> {
+		let images = icon.images.iter().map(|image| {
 			let dimension = image.size.dimension();
 			// Planes 1 and BitCount 32: Windows decodes every PNG to 32 bits
-			([dimension, dimension, 0, 0, 1, 0, 32, 0], image.png)
+			([dimension, dimension, 0, 0, 1, 0, 32, 0], <Arc<[u8]>>::clone(&image.png))
 		});
 		let entries = self.group_entries(Kind::Icon, ResourceKey::new(RT_GROUP_ICON, id, language), images)?;
 		self.insert_entries(entries)
@@ -522,15 +525,20 @@ impl ResourceFile {
 	/// Inserts a cursor as `RT_GROUP_CURSOR` resource `id`, with its images as `RT_CURSOR` resources.
 	///
 	/// The images take the names after the highest image name in the file.
-	/// The images move into the file without a copy; to use a cursor under several names, insert an alias.
-	pub fn insert_cursor(&mut self, id: NonZeroU16, language: LanguageId, cursor: Cursor) -> Result<(), InsertError> {
-		let images = cursor.images.into_iter().map(|image| {
+	/// The resource file shares the data with the cursor, so no byte is copied;
+	/// the cursor stays usable, after a failed insertion as well, and can go into further files.
+	/// To use a cursor under several names of one file, insert an alias.
+	pub fn insert_cursor(&mut self, id: NonZeroU16, language: LanguageId, cursor: &Cursor) -> Result<(), InsertError> {
+		let images = cursor.images.iter().map(|image| {
 			// Like rc.exe, WORDs of the directory size byte, where 0 stands for 256, and of its double,
 			// then planes 1 and BitCount 32; the data already starts with the hotspot (LOCALHEADER)
 			let dimension = u16::from(image.size.dimension());
 			let [width_low, width_high] = dimension.to_le_bytes();
 			let [height_low, height_high] = dimension.strict_mul(2).to_le_bytes();
-			([width_low, width_high, height_low, height_high, 1, 0, 32, 0], image.data)
+			(
+				[width_low, width_high, height_low, height_high, 1, 0, 32, 0],
+				<Arc<[u8]>>::clone(&image.data),
+			)
 		});
 		let entries = self.group_entries(Kind::Cursor, ResourceKey::new(RT_GROUP_CURSOR, id, language), images)?;
 		self.insert_entries(entries)
@@ -555,7 +563,7 @@ impl ResourceFile {
 		&self,
 		kind: Kind,
 		group: ResourceKey,
-		images: impl ExactSizeIterator<Item = ([u8; 8], Box<[u8]>)>,
+		images: impl ExactSizeIterator<Item = ([u8; 8], Arc<[u8]>)>,
 	) -> Result<Vec<NewEntry>, InsertError> {
 		let image_type = match kind {
 			Kind::Icon => RT_ICON,
@@ -586,7 +594,7 @@ impl ResourceFile {
 			let key = ResourceKey::new(image_type, image_id, group.language);
 			entries.push(NewEntry::new(key, MOVEABLE | DISCARDABLE, data));
 		}
-		entries.push(NewEntry::new(group, MOVEABLE | PURE | DISCARDABLE, directory.into_boxed_slice()));
+		entries.push(NewEntry::new(group, MOVEABLE | PURE | DISCARDABLE, Arc::from(directory)));
 		Ok(entries)
 	}
 
@@ -598,13 +606,13 @@ impl ResourceFile {
 		target: NonZeroU16,
 	) -> Result<(), InsertError> {
 		let (flags, directory) = self
-			.entry(ResourceKey::new(group_type, target, language))
+			.shared_entry(ResourceKey::new(group_type, target, language))
 			.ok_or(InsertError::MissingGroup {
 				resource_type: group_type.get(),
 				name: target.get(),
 				language: language.raw(),
 			})?;
-		let entry = NewEntry::new(ResourceKey::new(group_type, id, language), flags, Box::from(directory));
+		let entry = NewEntry::new(ResourceKey::new(group_type, id, language), flags, directory);
 		self.insert_entries(vec![entry])
 	}
 }
@@ -739,18 +747,39 @@ const DEFAULT_OPTIMIZATION: PngOptimization = PngOptimization::Oxipng {
 	preset: OxipngPreset::DEFAULT,
 };
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 struct Image {
 	size: ImageSize,
-	png: Box<[u8]>,
+	png: Arc<[u8]>,
+}
+
+/// Shows the size and the length of the PNG, not its bytes.
+impl fmt::Debug for Image {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.debug_struct("Image")
+			.field("size", &self.size.get())
+			.field("len", &self.png.len())
+			.finish_non_exhaustive()
+	}
 }
 
 /// A cursor image as the resource stores it: the hotspot (`LOCALHEADER`) followed by the PNG.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 struct CursorImage {
 	size: ImageSize,
 	hotspot: Hotspot,
-	data: Box<[u8]>,
+	data: Arc<[u8]>,
+}
+
+/// Shows size, hotspot and the length of the PNG, not its bytes.
+impl fmt::Debug for CursorImage {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.debug_struct("CursorImage")
+			.field("size", &self.size.get())
+			.field("hotspot", &self.hotspot)
+			.field("len", &self.png().len())
+			.finish_non_exhaustive()
+	}
 }
 
 impl CursorImage {
@@ -801,21 +830,22 @@ impl Storage {
 		}
 	}
 
-	/// Decodes or checks one image and returns `prefix` followed by its PNG.
-	fn store(&self, item: &Pending<'_>, prefix: &[u8]) -> Result<Box<[u8]>, ImageError> {
+	/// Decodes or checks one image and returns `prefix` followed by its PNG,
+	/// in one allocation of the exact size that the resource file later shares.
+	fn store(&self, item: &Pending<'_>, prefix: &[u8]) -> Result<Arc<[u8]>, ImageError> {
 		let &Pending { index, size, .. } = item;
 		if self.optimizer.is_none()
 			&& let Source::Png(png) = item.source
 		{
 			codec::validate(png, index)?;
+			if !self.strip {
+				// The length is known in advance, so collecting allocates once
+				return Ok(prefix.iter().chain(png).copied().collect());
+			}
 			let mut out = Vec::with_capacity(prefix.len().saturating_add(png.len()));
 			out.extend_from_slice(prefix);
-			if self.strip {
-				codec::strip_into(png, &mut out);
-			} else {
-				out.extend_from_slice(png);
-			}
-			return Ok(out.into_boxed_slice());
+			codec::strip_into(png, &mut out);
+			return Ok(Arc::from(out));
 		}
 
 		let pixels = match &item.source {
@@ -827,16 +857,10 @@ impl Storage {
 		let Some(options) = &self.optimizer else {
 			let mut out = prefix.to_vec();
 			codec::encode_fast(&pixels, size, &mut out)?;
-			return Ok(out.into_boxed_slice());
+			return Ok(Arc::from(out));
 		};
 		let png = codec::optimize(pixels, size, options)?;
-		if prefix.is_empty() {
-			return Ok(png.into_boxed_slice());
-		}
-		let mut out = Vec::with_capacity(prefix.len().saturating_add(png.len()));
-		out.extend_from_slice(prefix);
-		out.extend_from_slice(&png);
-		Ok(out.into_boxed_slice())
+		Ok(prefix.iter().chain(&png).copied().collect())
 	}
 }
 

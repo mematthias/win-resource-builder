@@ -22,9 +22,9 @@ win-resource-builder = "0.1"
 
 ```rust
 let mut file = ResourceFile::new();
-file.insert_manifest(Manifest::standard().create()?)?;
-file.insert_version_info(VersionInfo::options().create("Example", "app.exe", Version::new(1, 2, 3, 4))?)?;
-file.insert_icon(NonZeroU16::MIN, LanguageId::NEUTRAL, Icon::options().create_from_file("app.ico")?)?;
+file.insert_manifest(&Manifest::standard().create()?)?;
+file.insert_version_info(&VersionInfo::options().create("Example", "app.exe", Version::new(1, 2, 3, 4))?)?;
+file.insert_icon(NonZeroU16::MIN, LanguageId::NEUTRAL, &Icon::options().create_from_file("app.ico")?)?;
 file.write_coff(File::create("app.obj")?, CoffMachine::cargo_target()?)?;
 ```
 
@@ -76,9 +76,20 @@ must neither have `display="none"` nor sit in `<defs>`, as usvg drops such eleme
 </svg>
 ```
 
-`insert_icon_alias` and `insert_cursor_alias` give an icon or cursor a further name that shares its
-images. Every group counts for positive `ExtractIcon` indices; negative ids such as `app.exe,-1`
-stay independent of aliases.
+## Aliases
+
+One icon or cursor can have several names without storing its images twice. Explorer shows the
+icon with the lowest name, while programs and frameworks often load their window icon or cursor
+under a fixed name; an alias serves both:
+
+```rust
+file.insert_icon(NonZeroU16::MIN, LanguageId::NEUTRAL, &icon)?;
+file.insert_icon_alias(WINDOW_ICON, LanguageId::NEUTRAL, NonZeroU16::MIN)?;
+```
+
+`insert_icon_alias` and `insert_cursor_alias` add only a group directory of a few bytes,
+which shares the images of its target. Every group counts for positive `ExtractIcon` indices;
+negative ids such as `app.exe,-1` stay independent of aliases.
 
 ## Rules
 

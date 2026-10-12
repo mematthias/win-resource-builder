@@ -10,7 +10,7 @@ fn build(kinds: &[ManifestKind]) -> ResourceFile {
 	let mut file = ResourceFile::new();
 	for &kind in kinds {
 		let manifest = Manifest::options().kind(kind).create(&xml).expect("Reference manifest is valid");
-		file.insert_manifest(manifest).expect("Reference manifest fits");
+		file.insert_manifest(&manifest).expect("Reference manifest fits");
 	}
 	file
 }

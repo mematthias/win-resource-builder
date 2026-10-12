@@ -170,6 +170,23 @@ fn cursor() -> Cursor {
 }
 
 #[test]
+fn debug_output_shows_lengths_instead_of_bytes() {
+	let icon = icon();
+	let icon_text = format!("{icon:?}");
+	assert!(
+		icon_text.starts_with("Icon { images: [Image { size: 16, len: ") && icon_text.len() < 200,
+		"{icon_text}"
+	);
+	let mut file = ResourceFile::new();
+	file.insert_icon(id(1), LanguageId::NEUTRAL, &icon).unwrap();
+	let file_text = format!("{file:?}");
+	assert!(
+		file_text.starts_with("ResourceFile { res_size: ") && file_text.ends_with(", .. }") && file_text.len() < 600,
+		"{file_text}"
+	);
+}
+
+#[test]
 fn sizes_and_presets_have_their_ranges() {
 	assert_eq!(ImageSize::new(0), None);
 	assert_eq!(ImageSize::new(257), None);
@@ -601,8 +618,17 @@ fn hotspots_come_from_the_input_or_the_closure() {
 #[test]
 fn groups_describe_every_image() {
 	let mut file = ResourceFile::new();
-	file.insert_icon(id(7), LanguageId::NEUTRAL, icon()).unwrap();
-	file.insert_cursor(id(7), LanguageId::NEUTRAL, cursor()).unwrap();
+	let (created_icon, created_cursor) = (icon(), cursor());
+	let png_at = created_icon.images[0].png.as_ptr();
+	let cursor_at = created_cursor.images[0].data.as_ptr();
+	file.insert_icon(id(7), LanguageId::NEUTRAL, &created_icon).unwrap();
+	file.insert_cursor(id(7), LanguageId::NEUTRAL, &created_cursor).unwrap();
+	assert_eq!(
+		file.entry(key(RT_ICON, 1)).map(|(_, data)| data.as_ptr()),
+		Some(png_at),
+		"Images move without a copy"
+	);
+	assert_eq!(file.entry(key(RT_CURSOR, 1)).map(|(_, data)| data.as_ptr()), Some(cursor_at));
 	let (_, icon_group) = file.entry(key(RT_GROUP_ICON, 7)).unwrap();
 	assert_eq!(icon_group[..6], [0, 0, 1, 0, 2, 0]);
 	assert_eq!(
@@ -633,11 +659,32 @@ fn groups_describe_every_image() {
 }
 
 #[test]
+fn inserting_shares_the_images_and_keeps_the_value() {
+	let icon = icon();
+	let (mut exe, mut dll) = (ResourceFile::new(), ResourceFile::new());
+	exe.insert_icon(id(1), LanguageId::NEUTRAL, &icon).unwrap();
+	assert_eq!(
+		exe.insert_icon(id(1), LanguageId::NEUTRAL, &icon),
+		Err(InsertError::DuplicateResource {
+			resource_type: 14,
+			name: 1,
+			language: 0
+		})
+	);
+	// The icon survives the failed insertion and goes into a second file, which shares its images
+	dll.insert_icon(id(1), LanguageId::NEUTRAL, &icon).unwrap();
+	let image = |file: &ResourceFile| file.shared_entry(key(RT_ICON, 1)).unwrap().1;
+	assert!(Arc::ptr_eq(&image(&exe), &image(&dll)));
+	assert!(Arc::ptr_eq(&image(&exe), &icon.images[0].png));
+	assert_eq!(exe.to_res(), dll.to_res());
+}
+
+#[test]
 fn image_ordinals_continue_per_type_and_run_out_cleanly() {
 	let mut file = ResourceFile::new();
-	file.insert_icon(id(1), LanguageId::NEUTRAL, icon()).unwrap();
-	file.insert_icon(id(2), LanguageId::NEUTRAL, icon()).unwrap();
-	file.insert_cursor(id(1), LanguageId::NEUTRAL, cursor()).unwrap();
+	file.insert_icon(id(1), LanguageId::NEUTRAL, &icon()).unwrap();
+	file.insert_icon(id(2), LanguageId::NEUTRAL, &icon()).unwrap();
+	file.insert_cursor(id(1), LanguageId::NEUTRAL, &cursor()).unwrap();
 	assert_eq!(
 		(
 			file.max_name(RT_ICON).map(NonZeroU16::get),
@@ -647,7 +694,7 @@ fn image_ordinals_continue_per_type_and_run_out_cleanly() {
 	);
 	let before = file.to_res();
 	assert_eq!(
-		file.insert_icon(id(1), LanguageId::NEUTRAL, icon()),
+		file.insert_icon(id(1), LanguageId::NEUTRAL, &icon()),
 		Err(InsertError::DuplicateResource {
 			resource_type: 14,
 			name: 1,
@@ -657,11 +704,11 @@ fn image_ordinals_continue_per_type_and_run_out_cleanly() {
 	assert_eq!(file.to_res(), before, "A duplicate group inserts no images");
 
 	let mut full = ResourceFile::new();
-	full.insert_entries(vec![NewEntry::new(key(RT_ICON, u16::MAX), 0, Box::new([0]))])
+	full.insert_entries(vec![NewEntry::new(key(RT_ICON, u16::MAX), 0, Arc::from([0]))])
 		.unwrap();
 	let full_before = full.to_res();
 	assert_eq!(
-		full.insert_icon(id(1), LanguageId::NEUTRAL, icon()),
+		full.insert_icon(id(1), LanguageId::NEUTRAL, &icon()),
 		Err(InsertError::OutOfImageIds {
 			resource_type: 3,
 			count: 2
@@ -673,12 +720,19 @@ fn image_ordinals_continue_per_type_and_run_out_cleanly() {
 #[test]
 fn aliases_share_the_images_of_their_target() {
 	let mut file = ResourceFile::new();
-	file.insert_icon(id(1), LanguageId::NEUTRAL, icon()).unwrap();
-	file.insert_cursor(id(1), LanguageId::NEUTRAL, cursor()).unwrap();
+	file.insert_icon(id(1), LanguageId::NEUTRAL, &icon()).unwrap();
+	file.insert_cursor(id(1), LanguageId::NEUTRAL, &cursor()).unwrap();
 	let count = file.len();
 	file.insert_icon_alias(id(128), LanguageId::NEUTRAL, id(1)).unwrap();
 	file.insert_cursor_alias(id(32), LanguageId::NEUTRAL, id(1)).unwrap();
 	assert_eq!(file.len(), count + 2, "Only the group directories are added");
+	for (group_type, alias) in [(RT_GROUP_ICON, 128), (RT_GROUP_CURSOR, 32)] {
+		let shared = |name| file.shared_entry(key(group_type, name)).unwrap().1;
+		assert!(
+			Arc::ptr_eq(&shared(alias), &shared(1)),
+			"The alias shares the directory of its target"
+		);
+	}
 	assert_eq!(file.entry(key(RT_GROUP_ICON, 128)), file.entry(key(RT_GROUP_ICON, 1)));
 	assert_eq!(file.entry(key(RT_GROUP_CURSOR, 32)), file.entry(key(RT_GROUP_CURSOR, 1)));
 

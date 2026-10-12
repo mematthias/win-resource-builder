@@ -21,7 +21,7 @@ pub fn icon(fixture: &str) -> Icon {
 fn build(icons: &[(u16, &str)]) -> ResourceFile {
 	let mut file = ResourceFile::new();
 	for &(ordinal, fixture) in icons {
-		file.insert_icon(id(ordinal), LanguageId::NEUTRAL, icon(fixture))
+		file.insert_icon(id(ordinal), LanguageId::NEUTRAL, &icon(fixture))
 			.expect("Fixture icon fits");
 	}
 	file

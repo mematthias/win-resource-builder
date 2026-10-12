@@ -30,14 +30,14 @@
 //! 	}
 //!
 //! 	let mut file = ResourceFile::new();
-//! 	file.insert_manifest(Manifest::standard().create()?)?;
+//! 	file.insert_manifest(&Manifest::standard().create()?)?;
 //!
 //! 	let version_info = VersionInfo::options()
 //! 		.file_description("Example application")
 //! 		.company_name("Example Ltd.")
 //! 		.legal_copyright("Copyright 2026 Example Ltd.")
 //! 		.create("Example", "example.exe", Version::new(1, 2, 3, 0))?;
-//! 	file.insert_version_info(version_info)?;
+//! 	file.insert_version_info(&version_info)?;
 //!
 //! 	let object = std::path::Path::new(&std::env::var("OUT_DIR")?).join("resources.obj");
 //! 	file.write_coff(std::fs::File::create(&object)?, CoffMachine::cargo_target()?)?;
@@ -54,6 +54,39 @@
 //!   rayon ignores the jobserver of Cargo and competes with the other build jobs, so it is off by default.
 //! - `svg`: renders SVG documents into icons and cursors with resvg.
 //!   Recommended is to render once, keep the `.ico` or `.cur` file and build without this feature.
+#![cfg_attr(
+	feature = "images",
+	doc = r#"
+# Aliases
+
+One icon or cursor can have several names without storing its images twice.
+Explorer shows the icon with the lowest name,
+while programs and frameworks often load their window icon or cursor under a fixed name;
+an alias serves both.
+Each alias adds only a group directory of a few bytes, which shares the images of its target:
+[`insert_icon_alias`](resource::ResourceFile::insert_icon_alias) adds one for an icon,
+[`insert_cursor_alias`](resource::ResourceFile::insert_cursor_alias) one for a cursor.
+
+```no_run
+use std::num::NonZeroU16;
+use win_resource_builder::image::Icon;
+use win_resource_builder::resource::{LanguageId, ResourceFile};
+
+// The name the program loads its window icon by, checked at compile time
+const WINDOW_ICON: NonZeroU16 = NonZeroU16::new(101).unwrap();
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+	let mut file = ResourceFile::new();
+	let icon = Icon::options().create_from_file("app.ico")?;
+	// Icon 1, the lowest name, is the one Explorer shows for the file
+	file.insert_icon(NonZeroU16::MIN, LanguageId::NEUTRAL, &icon)?;
+	// The same images once more as window icon
+	file.insert_icon_alias(WINDOW_ICON, LanguageId::NEUTRAL, NonZeroU16::MIN)?;
+	Ok(())
+}
+```
+"#
+)]
 
 #[cfg(feature = "images")]
 pub mod image;
