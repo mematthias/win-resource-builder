@@ -28,17 +28,21 @@
 //! 	if std::env::var("CARGO_CFG_TARGET_OS")? != "windows" {
 //! 		return Ok(());
 //! 	}
+//!
 //! 	let mut file = ResourceFile::new();
 //! 	file.insert_manifest(Manifest::standard().create()?)?;
+//!
 //! 	let version_info = VersionInfo::options()
 //! 		.file_description("Example application")
 //! 		.company_name("Example Ltd.")
 //! 		.legal_copyright("Copyright 2026 Example Ltd.")
 //! 		.create("Example", "example.exe", Version::new(1, 2, 3, 0))?;
 //! 	file.insert_version_info(version_info)?;
+//!
 //! 	let object = std::path::Path::new(&std::env::var("OUT_DIR")?).join("resources.obj");
 //! 	file.write_coff(std::fs::File::create(&object)?, CoffMachine::cargo_target()?)?;
 //! 	println!("cargo::rustc-link-arg-bins={}", object.display());
+//!
 //! 	Ok(())
 //! }
 //! ```
