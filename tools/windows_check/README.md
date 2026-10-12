@@ -28,8 +28,8 @@ Every image of the executable and of the DLL, which is loaded as data file, goes
 - `load`: `LoadImageW` finds the group and decodes the image, as `LoadIcon` and `LoadCursor` do.
 - `shell`: `PrivateExtractIconsW` extracts the icon from the file the way Explorer does.
 
-The `.ico` and `.cur` files the helpers built (`input`) and those `to_ico`/`to_cur` wrote
-(`optimized`) are loaded with `LoadImageW` and `LR_LOADFROMFILE` (`file`).
+The `.ico` and `.cur` files with the PNG images as generated (`input`) and those `to_ico`/`to_cur`
+wrote (`optimized`) are loaded with `LoadImageW` and `LR_LOADFROMFILE` (`file`).
 
 Each check reads the image back with `GetIconInfo` and `GetDIBits` and compares size, hotspot and
 every pixel with the PNG, decoded by the png crate. Alpha has to match exactly and so does the color

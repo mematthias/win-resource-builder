@@ -11,5 +11,3 @@
 !/rust-toolchain.toml
 
 !/src/**
-!/tests/**
-!/tools/**
