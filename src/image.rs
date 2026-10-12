@@ -4,11 +4,12 @@
 //! from one PNG per size or, with the feature `svg`, from an SVG document rendered at every size.
 //! Every image is square, from 1 to 256 pixels, one per size, and the 256 pixel image is required.
 //! Recommended are the sizes Windows requests at the common display scales,
-//! `ImageSize::ICON_SIZES` for icons and `ImageSize::CURSOR_SIZES` for cursors.
+//! [`ImageSize::ICON_SIZES`] for icons and [`ImageSize::CURSOR_SIZES`] for cursors.
 //!
 //! Every image is stored as PNG, losslessly reduced by oxipng, which keeps executables small.
-//! The recommended workflow is to load the source once, keep the file that `to_ico` or `to_cur` returns,
-//! and load that with `PngOptimization::Retain`, so that a build neither renders nor optimizes.
+//! The recommended workflow is to load the source once,
+//! keep the file that [`to_ico`](Icon::to_ico) or [`to_cur`](Cursor::to_cur) returns,
+//! and load that with [`PngOptimization::Retain`], so that a build neither renders nor optimizes.
 //!
 //! `.ico`, `.cur` and PNG input is untrusted: containers are parsed field by field,
 //! every check that needs only headers runs before any pixel is decoded,
@@ -19,7 +20,7 @@
 //! a `tEXt` chunk `hotspot` of a PNG with the value `x,y`,
 //! or the center of the element with `id="hotspot"` of an SVG document,
 //! which `visibility="hidden"` keeps out of the picture.
-//! `CursorOptions::hotspot` replaces or completes them.
+//! [`CursorOptions::hotspot`] replaces or completes them.
 //!
 //! ```no_run
 //! use std::num::NonZeroU16;
@@ -58,18 +59,18 @@ use thiserror::Error;
 /// How the images of an icon or cursor are compressed when it is loaded.
 ///
 /// Recommended are oxipng with the default preset for regular builds,
-/// `Retain` for files that `to_ico` or `to_cur` already optimized,
+/// [`Retain`](Self::Retain) for files that [`to_ico`](Icon::to_ico) or [`to_cur`](Cursor::to_cur) already optimized,
 /// and Zopfli where the smallest executable matters more than the build time.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PngOptimization {
 	/// oxipng with libdeflate: every lossless reduction, at the given search effort.
 	Oxipng {
-		/// Search effort; `OxipngPreset::DEFAULT` is recommended.
+		/// Search effort; [`OxipngPreset::DEFAULT`] is recommended.
 		preset: OxipngPreset,
 	},
 	/// oxipng with Zopfli: a few percent smaller than libdeflate, but many times slower.
 	Zopfli {
-		/// Search effort; `OxipngPreset::DEFAULT` is recommended.
+		/// Search effort; [`OxipngPreset::DEFAULT`] is recommended.
 		preset: OxipngPreset,
 		/// Zopfli iterations per deflate stream; 15 is the usual value, more gain little.
 		iterations: NonZeroU8,
@@ -77,10 +78,11 @@ pub enum PngOptimization {
 	/// No optimization: PNG images are checked and stored byte for byte,
 	/// bitmaps and rendered images are compressed quickly.
 	///
-	/// For files that `to_ico` or `to_cur` already optimized, so that a build does not optimize them again.
+	/// For files that [`to_ico`](Icon::to_ico) or [`to_cur`](Cursor::to_cur) already optimized,
+	/// so that a build does not optimize them again.
 	/// The PNG images of other files keep their ancillary chunks, such as texts and color profiles.
 	Retain,
-	/// Like `Retain`, but every PNG image keeps only `IHDR`, `PLTE`, `tRNS`, `IDAT` and `IEND`:
+	/// Like [`Retain`](PngOptimization::Retain), but every PNG image keeps only `IHDR`, `PLTE`, `tRNS`, `IDAT` and `IEND`:
 	/// texts, time stamps, color profiles and gamma are dropped, and the image data stays byte for byte.
 	Strip,
 }
@@ -123,7 +125,7 @@ impl ImageSize {
 		Self::MAX,
 	];
 
-	/// Returns the size, or `None` outside of 1 to 256 pixels.
+	/// Returns the size, or [`None`] outside of 1 to 256 pixels.
 	#[must_use]
 	pub const fn new(pixels: u32) -> Option<Self> {
 		if pixels > 256 {
@@ -142,7 +144,7 @@ impl ImageSize {
 		self.0.get()
 	}
 
-	/// Returns the edge length in pixels as `u32`, the type of PNG dimensions.
+	/// Returns the edge length in pixels as [`u32`], the type of PNG dimensions.
 	#[must_use]
 	pub const fn pixels(self) -> u32 {
 		let [low, high] = self.0.get().to_le_bytes();
@@ -207,7 +209,7 @@ impl OxipngPreset {
 	/// Preset 6, for release builds that want the smallest images.
 	pub const MAXIMUM: Self = Self(6);
 
-	/// Returns preset `level`, or `None` above 6.
+	/// Returns preset `level`, or [`None`] above 6.
 	#[must_use]
 	pub const fn new(level: u8) -> Option<Self> {
 		if level <= Self::MAXIMUM.0 { Some(Self(level)) } else { None }
@@ -244,7 +246,7 @@ impl Icon {
 
 	/// Returns the icon as `.ico` file, which loads again to the same icon.
 	///
-	/// Keeping this file and loading it with `PngOptimization::Retain` spares later builds the optimization.
+	/// Keeping this file and loading it with [`PngOptimization::Retain`] spares later builds the optimization.
 	#[must_use]
 	pub fn to_ico(&self) -> Vec<u8> {
 		// Planes 1 and BitCount 32: Windows decodes every PNG to 32 bits
@@ -298,7 +300,7 @@ impl IconOptions {
 	///
 	/// The sizes are checked before the document is parsed.
 	/// The document must not have a DTD or more than 100000 nodes; images and text are not drawn.
-	/// Its rendering time is not bounded, so render once and keep the file `to_ico` returns.
+	/// Its rendering time is not bounded, so render once and keep the file [`to_ico`](Icon::to_ico) returns.
 	#[cfg(feature = "svg")]
 	pub fn create_from_svg(self, svg: &[u8], sizes: &[ImageSize]) -> Result<Icon, ImageError> {
 		check_sizes(sizes.iter().copied().enumerate(), self.min_size)?;
@@ -365,7 +367,7 @@ impl Cursor {
 
 	/// Returns the cursor as `.cur` file, which loads again to the same cursor.
 	///
-	/// Keeping this file and loading it with `PngOptimization::Retain` spares later builds the optimization.
+	/// Keeping this file and loading it with [`PngOptimization::Retain`] spares later builds the optimization.
 	#[must_use]
 	pub fn to_cur(&self) -> Vec<u8> {
 		// A .cur file stores the hotspot where an .ico file stores planes and bit count
@@ -774,7 +776,7 @@ enum Source<'a> {
 	Svg(&'a svg::Document),
 }
 
-/// Stores images as PNG the way a `PngOptimization` asks for.
+/// Stores images as PNG the way a [`PngOptimization`] asks for.
 struct Storage {
 	optimizer: Option<OxipngOptions>,
 	strip: bool,
@@ -838,7 +840,7 @@ impl Storage {
 	}
 }
 
-/// Reads a file of at most `MAX_INPUT_SIZE` bytes, also if it grows while it is read.
+/// Reads a file of at most [`MAX_INPUT_SIZE`] bytes, also if it grows while it is read.
 fn read_file(path: &Path) -> Result<Vec<u8>, ImageError> {
 	let io_error = |source| ImageError::Io {
 		path: path.to_owned(),

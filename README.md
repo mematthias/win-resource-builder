@@ -5,7 +5,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-Writes Win32 resource files (`.res`) and COFF resource objects on every platform. A typed API takes
+Windows resources built directly in Rust, without `rc.exe`, `windres`, `llvm-rc`, `cvtres` or any other
+resource tool.
+
+It writes Win32 resource files (`.res`) and COFF resource objects on every platform. A typed API takes
 manifests, version information, icons and cursors; the result goes to `link.exe` or `lld-link` as
 `.res`, or to every linker as COFF object. There is no `.rc` text, so no input can change the
 structure of the output.

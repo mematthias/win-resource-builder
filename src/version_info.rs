@@ -115,7 +115,7 @@ pub struct VersionInfo {
 }
 
 impl VersionInfo {
-	/// Returns options with every optional string unset, file type `Application` and neutral language.
+	/// Returns options with every optional string unset, file type [`Application`](FileType::Application) and neutral language.
 	#[must_use]
 	pub const fn options() -> VersionInfoOptions {
 		VersionInfoOptions {
@@ -293,7 +293,7 @@ impl VersionInfoOptions {
 		self
 	}
 
-	/// Sets the kind of file, an executable by default; DLLs set `DynamicLibrary`.
+	/// Sets the kind of file, an executable by default; DLLs set [`DynamicLibrary`](FileType::DynamicLibrary).
 	#[must_use]
 	pub const fn file_type(mut self, value: FileType) -> Self {
 		self.file_type = value;
@@ -390,7 +390,7 @@ pub enum VersionInfoError {
 	#[error("Version string '{key}' contains {character:?} at byte {offset}")]
 	ControlCharacter { key: &'static str, offset: usize, character: char },
 
-	/// A string contains a text direction control, and `allow_bidi_controls` is off.
+	/// A string contains a text direction control, and [`allow_bidi_controls`](VersionInfoOptions::allow_bidi_controls) is off.
 	#[error("Version string '{key}' contains the text direction control {character:?} at byte {offset}")]
 	BidiControl { key: &'static str, offset: usize, character: char },
 
@@ -398,7 +398,7 @@ pub enum VersionInfoError {
 	#[error("Version string '{key}' is not in Unicode normalization form C from byte {offset} on")]
 	NotNormalized { key: &'static str, offset: usize },
 
-	/// The flags contain bits that `VersionFlags` does not define.
+	/// The flags contain bits that [`VersionFlags`] does not define.
 	#[error("Version flags 0x{bits:08X} contain undefined bits")]
 	UndefinedFlags { bits: u32 },
 

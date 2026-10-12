@@ -33,7 +33,7 @@ pub enum CoffMachine {
 impl CoffMachine {
 	/// Returns the machine this code is compiled for.
 	///
-	/// In a build script that is the host, not the target of the build, which `cargo_target` reads instead.
+	/// In a build script that is the host, not the target of the build, which [`cargo_target`](Self::cargo_target) reads instead.
 	#[cfg(any(
 		target_arch = "x86",
 		target_arch = "x86_64",
@@ -106,7 +106,7 @@ impl CoffMachine {
 /// Windows picks the resource in the language of the user interface and falls back to neutral,
 /// so resources that are not translated are best stored as neutral only.
 /// Constants name the common languages, each in its main region;
-/// `from_parts` and `from_raw` give every other one.
+/// [`from_parts`](Self::from_parts) and [`from_raw`](Self::from_raw) give every other one.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[repr(transparent)]
 pub struct LanguageId(u16);
@@ -165,7 +165,7 @@ impl LanguageId {
 	}
 
 	/// Returns the language of a primary language up to 0x3FF and a sublanguage up to 0x3F,
-	/// or `None` beyond.
+	/// or [`None`] beyond.
 	#[must_use]
 	pub const fn from_parts(primary: u16, sub: u16) -> Option<Self> {
 		if primary > 0x03FF || sub > 0x003F {
@@ -272,7 +272,7 @@ impl ResourceFile {
 	/// Writes the COFF object for `machine` through an internal buffer,
 	/// without holding the whole object in memory.
 	///
-	/// Recommended in build scripts, with the machine of `CoffMachine::cargo_target`.
+	/// Recommended in build scripts, with the machine of [`CoffMachine::cargo_target`].
 	pub fn write_coff(&self, writer: impl Write, machine: CoffMachine) -> io::Result<()> {
 		let mut sink = BufWriter::new(writer);
 		self.emit_coff(&mut sink, machine)?;
@@ -522,7 +522,7 @@ pub enum InsertError {
 	MissingGroup { resource_type: u16, name: u16, language: u16 },
 }
 
-/// Why `CoffMachine::cargo_target` found no machine.
+/// Why [`CoffMachine::cargo_target`] found no machine.
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum CargoTargetError {
 	/// `CARGO_CFG_TARGET_ARCH` is not set, as outside of build scripts.

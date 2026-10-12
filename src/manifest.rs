@@ -60,7 +60,7 @@ impl ManifestKind {
 	}
 }
 
-/// The processor architecture of an assembly identity; `Any` suits most dependencies.
+/// The processor architecture of an assembly identity; [`Any`](Self::Any) suits most dependencies.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Architecture {
 	/// Any processor, written as `*`.
@@ -222,7 +222,8 @@ impl Manifest {
 	/// - The UTF-8 code page.
 	///   It applies to the whole process, linked C and C++ code included:
 	///   `GetACP`, the `A` functions of Windows and the C runtime then use UTF-8,
-	///   not the code page of the system locale, which `active_code_page(None)` keeps for code that expects it.
+	///   not the code page of the system locale,
+	///   which [`active_code_page(None)`](StandardManifestOptions::active_code_page) keeps for code that expects it.
 	///
 	/// The heap stays the NT heap unless measurements show that the program benefits from another one.
 	#[must_use]
@@ -307,7 +308,7 @@ impl ManifestOptions {
 		})
 	}
 
-	/// Sets the resource name: `Process` for executables, the default, or a name for DLLs.
+	/// Sets the resource name: [`Process`](ManifestKind::Process) for executables, the default, or a name for DLLs.
 	#[must_use]
 	pub const fn kind(mut self, value: ManifestKind) -> Self {
 		self.kind = value;
@@ -371,7 +372,7 @@ impl StandardManifestOptions {
 		})
 	}
 
-	/// Sets the resource name: `Process` for executables or a name for DLLs.
+	/// Sets the resource name: [`Process`](ManifestKind::Process) for executables or a name for DLLs.
 	#[must_use]
 	pub const fn kind(mut self, value: ManifestKind) -> Self {
 		self.kind = value;
@@ -417,8 +418,8 @@ impl StandardManifestOptions {
 
 	/// Adds a dependent assembly, such as a private side-by-side assembly shipped with the program.
 	///
-	/// The name follows the rules of `assembly_identity`;
-	/// `public_key_token` is the 16 hexadecimal digits of a signed assembly, `None` for unsigned ones.
+	/// The name follows the rules of [`assembly_identity`](Self::assembly_identity);
+	/// `public_key_token` is the 16 hexadecimal digits of a signed assembly, [`None`] for unsigned ones.
 	/// Windows refuses to start the program if the assembly is missing.
 	#[must_use]
 	pub fn add_dependency(
@@ -439,7 +440,7 @@ impl StandardManifestOptions {
 
 	/// Sets the privileges the process requests, `asInvoker` by default.
 	///
-	/// `None` leaves them out, which lets Windows take the program for an installer by its name.
+	/// [`None`] leaves them out, which lets Windows take the program for an installer by its name.
 	#[must_use]
 	pub const fn execution_level(mut self, value: Option<ExecutionLevel>) -> Self {
 		self.execution_level = value;
@@ -462,7 +463,7 @@ impl StandardManifestOptions {
 
 	/// Sets the DPI awareness, per-monitor V2 by default.
 	///
-	/// `None` leaves it out, which makes the process unaware; console programs do not need it.
+	/// [`None`] leaves it out, which makes the process unaware; console programs do not need it.
 	#[must_use]
 	pub const fn dpi_awareness(mut self, value: Option<DpiAwareness>) -> Self {
 		self.dpi_awareness = value;
@@ -502,7 +503,7 @@ impl StandardManifestOptions {
 		self
 	}
 
-	/// Sets the code page of the process, UTF-8 by default; `None` leaves the setting out.
+	/// Sets the code page of the process, UTF-8 by default; [`None`] leaves the setting out.
 	///
 	/// It applies to the whole process, linked C and C++ code included:
 	/// `GetACP`, the `A` functions of Windows and the C runtime use it,
@@ -516,7 +517,7 @@ impl StandardManifestOptions {
 
 	/// Sets the heap implementation of the process, the NT heap by default.
 	///
-	/// `HeapType::Segment` changes the cost of every allocation, so choose it only after measuring.
+	/// [`HeapType::Segment`] changes the cost of every allocation, so choose it only after measuring.
 	#[must_use]
 	pub const fn heap_type(mut self, value: HeapType) -> Self {
 		self.heap_type = value;

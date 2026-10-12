@@ -46,7 +46,7 @@ impl Format {
 		}
 	}
 
-	/// Returns the largest color table the format allows, or `None` for formats without one.
+	/// Returns the largest color table the format allows, or [`None`] for formats without one.
 	#[must_use]
 	const fn max_colors(self) -> Option<u32> {
 		match self {
@@ -219,7 +219,7 @@ impl<'a> Bitmap<'a> {
 		Ok(out)
 	}
 
-	/// Returns the color of a table entry, or `None` behind the table.
+	/// Returns the color of a table entry, or [`None`] behind the table.
 	#[must_use]
 	fn color(&self, index: u8) -> Option<[u8; 4]> {
 		self.palette.get(usize::from(index)).map(|&[b, g, r, _]| [r, g, b, 0])

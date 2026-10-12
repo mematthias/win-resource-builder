@@ -1,6 +1,6 @@
 //! Builds the Win32 resources of Windows executables and DLLs on every platform, without `rc.exe`.
 //!
-//! A build script collects a manifest, version information, icons and cursors in a `ResourceFile`,
+//! A build script collects a manifest, version information, icons and cursors in a [`ResourceFile`](resource::ResourceFile),
 //! writes it as COFF object and hands that to the linker.
 //! Nothing is parsed from `.rc` text: every resource comes from typed values,
 //! which are checked when they are created, so a broken resource fails the build instead of the program.
@@ -90,7 +90,7 @@ const _: () = {
 #[cfg(not(any(target_pointer_width = "32", target_pointer_width = "64")))]
 compile_error!("win-resource-builder needs a pointer width of 32 or 64 bits");
 
-/// Widens a `u32` to `usize`, which holds every value on the supported pointer widths.
+/// Widens a [`u32`] to [`usize`], which holds every value on the supported pointer widths.
 #[must_use]
 const fn usize_from_u32(value: u32) -> usize {
 	let [a, b, c, d] = value.to_le_bytes();
@@ -101,7 +101,7 @@ const fn usize_from_u32(value: u32) -> usize {
 	usize::from_le_bytes(bytes)
 }
 
-/// Widens a `usize` to `u64`, which holds every value on the supported pointer widths.
+/// Widens a [`usize`] to [`u64`], which holds every value on the supported pointer widths.
 #[cfg(any(test, feature = "images"))]
 #[must_use]
 const fn u64_from_usize(value: usize) -> u64 {
@@ -130,7 +130,7 @@ fn put_u32(out: &mut Vec<u8>, value: u32) {
 }
 
 /// Returns the byte offset of the first character that Unicode normalization form C changes,
-/// or `None` for text that is in NFC already.
+/// or [`None`] for text that is in NFC already.
 ///
 /// ASCII is always in NFC and passes the quick check of `is_nfc` without a lookup.
 #[must_use]
